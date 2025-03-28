@@ -1,9 +1,13 @@
 // tasks-chart.js - PowerPoint-optimized HTML for schedule changes
 const fs = require('fs');
 const path = require('path');
-const child_process = require('child_process'); // For opening browser
+const child_process = require('child_process');
 
-// Function to parse CSV data
+/**
+ * Parse CSV data into task objects
+ * @param {string} csvContent - CSV content as string
+ * @returns {Array} Array of task objects
+ */
 function parseCSV(csvContent) {
   const lines = csvContent.trim().split('\n');
   const headers = lines[0].split(',').map(h => h.trim());
@@ -22,25 +26,8 @@ function parseCSV(csvContent) {
     const line = lines[i].trim();
     if (!line) continue;
 
-    // Handle possible quoted values with commas inside
-    const values = [];
-    let inQuotes = false;
-    let currentValue = '';
-
-    for (let j = 0; j < line.length; j++) {
-      const char = line[j];
-
-      if (char === '"' && (j === 0 || line[j - 1] !== '\\')) {
-        inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
-        values.push(currentValue);
-        currentValue = '';
-      } else {
-        currentValue += char;
-      }
-    }
-
-    values.push(currentValue); // Add the last value
+    // Parse CSV values handling quoted values with commas
+    const values = parseCSVLine(line);
 
     const taskName = values[taskNameIndex].replace(/^"|"$/g, '').trim();
     const originalDateStr = values[origDateIndex].replace(/^"|"$/g, '').trim();
@@ -52,7 +39,7 @@ function parseCSV(csvContent) {
       continue;
     }
 
-    // Parse dates - try multiple formats
+    // Parse dates
     let originalDate = parseDate(originalDateStr);
     let newDate = parseDate(newDateStr);
 
@@ -71,11 +58,41 @@ function parseCSV(csvContent) {
   return tasks;
 }
 
-// More robust date parsing function
+/**
+ * Parse a CSV line handling quoted values
+ * @param {string} line - CSV line
+ * @returns {Array} Array of values
+ */
+function parseCSVLine(line) {
+  const values = [];
+  let inQuotes = false;
+  let currentValue = '';
+
+  for (let j = 0; j < line.length; j++) {
+    const char = line[j];
+
+    if (char === '"' && (j === 0 || line[j - 1] !== '\\')) {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      values.push(currentValue);
+      currentValue = '';
+    } else {
+      currentValue += char;
+    }
+  }
+
+  values.push(currentValue); // Add the last value
+  return values;
+}
+
+/**
+ * Parse date string in multiple formats
+ * @param {string} dateStr - Date string
+ * @returns {Date|null} Date object or null if invalid
+ */
 function parseDate(dateStr) {
   if (!dateStr) return null;
 
-  // Try multiple date formats
   let date = null;
 
   // Try parsing with standard Date constructor
@@ -107,17 +124,39 @@ function parseDate(dateStr) {
   return date;
 }
 
-// Format date for display (MM/DD)
+/**
+ * Format date for display (MM/DD)
+ * @param {Date} date - Date object
+ * @returns {string} Formatted date
+ */
 function formatDate(date) {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
-// Format full date for console output
+/**
+ * Format full date for console output (MM/DD/YYYY)
+ * @param {Date} date - Date object
+ * @returns {string} Formatted date
+ */
 function formatFullDate(date) {
   return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
 }
 
-// Get weeks between start and end date
+/**
+ * Format date as MM/DD/YYYY for exact comparison
+ * @param {Date} date - Date object
+ * @returns {string} Formatted date
+ */
+function formatDetailedDate(date) {
+  return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+}
+
+/**
+ * Get weeks between start and end date
+ * @param {Date} start - Start date
+ * @param {Date} end - End date
+ * @returns {Array} Array of week objects
+ */
 function getWeeks(start, end) {
   const weeks = [];
 
@@ -142,19 +181,21 @@ function getWeeks(start, end) {
     const weekEnd = new Date(currentDate);
     weekEnd.setDate(weekEnd.getDate() + 6); // Move to Saturday
 
-    // Get week number
+    // Get formatted date string for each day in the week
+    const days = Array(7).fill().map((_, i) => {
+      const day = new Date(weekStart);
+      day.setDate(day.getDate() + i);
+      return formatDetailedDate(day);
+    });
+
+    // Create week object
     weeks.push({
       number: weekCounter++,
       start: weekStart,
       end: weekEnd,
       month: weekStart.getMonth(),
       year: weekStart.getFullYear(),
-      // Get formatted date string for each day in the week
-      days: Array(7).fill().map((_, i) => {
-        const day = new Date(weekStart);
-        day.setDate(day.getDate() + i);
-        return formatDetailedDate(day);
-      })
+      days
     });
 
     // Move to next week
@@ -164,12 +205,11 @@ function getWeeks(start, end) {
   return weeks;
 }
 
-// Format date as MM/DD/YYYY for exact day comparison
-function formatDetailedDate(date) {
-  return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
-}
-
-// Group weeks by month
+/**
+ * Group weeks by month
+ * @param {Array} weeks - Array of week objects
+ * @returns {Array} Array of month objects
+ */
 function groupWeeksByMonth(weeks) {
   const monthMap = {};
 
@@ -195,13 +235,23 @@ function groupWeeksByMonth(weeks) {
   });
 }
 
-// Check if a date string matches any day in the week
+/**
+ * Check if a date string matches any day in the week
+ * @param {string} dateStr - Date string
+ * @param {Object} week - Week object
+ * @returns {boolean} True if date is in week
+ */
 function dateInWeek(dateStr, week) {
   return week.days.includes(dateStr);
 }
 
-// Generate PowerPoint-optimized HTML for the tasks chart
-function generatePowerPointHTML(tasks, months, includeExportScript) {
+/**
+ * Generate PowerPoint-optimized HTML for the tasks chart
+ * @param {Array} tasks - Array of task objects
+ * @param {Array} months - Array of month objects 
+ * @returns {string} HTML content
+ */
+function generatePowerPointHTML(tasks, months) {
   // Calculate title based on date range
   const allDates = tasks.flatMap(task => [task.originalDate, task.newDate]);
   const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
@@ -209,12 +259,7 @@ function generatePowerPointHTML(tasks, months, includeExportScript) {
   const titleDateRange = `${formatDate(minDate)} - ${formatDate(maxDate)}`;
 
   // Get all weeks as a flat array
-  const allWeeks = [];
-  months.forEach(month => {
-    month.weeks.forEach(week => {
-      allWeeks.push(week);
-    });
-  });
+  const allWeeks = months.flatMap(month => month.weeks);
 
   // Convert task dates to formatted strings for comparison
   const formattedTasks = tasks.map(task => ({
@@ -223,8 +268,8 @@ function generatePowerPointHTML(tasks, months, includeExportScript) {
     newDateStr: formatDetailedDate(task.newDate)
   }));
 
-  // Generate PowerPoint-optimized HTML
-  let html = `
+  // Generate HTML content
+  return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -247,6 +292,13 @@ function generatePowerPointHTML(tasks, months, includeExportScript) {
       position: relative;
       padding: 40px;
       box-sizing: border-box;
+    }
+    
+    @media print {
+      .slide-container {
+        width: 100%;
+        height: auto;
+      }
     }
     
     .chart-container { 
@@ -294,10 +346,12 @@ function generatePowerPointHTML(tasks, months, includeExportScript) {
       text-align: left; 
       font-weight: 600; 
       background: white;
-      width: 300px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      width: 450px;
+      white-space: normal;
+      overflow: visible;
+      word-wrap: break-word;
+      font-size: 18px;
+      line-height: 1.3;
     }
     
     .week-cell {
@@ -344,8 +398,9 @@ function generatePowerPointHTML(tasks, months, includeExportScript) {
     }
     
     .date-info { 
-      font-size: 16px; 
-      color: #666; 
+      font-size: 14px; 
+      color: #666;
+      font-weight: normal;
     }
     
     /* Export instructions */
@@ -397,72 +452,10 @@ function generatePowerPointHTML(tasks, months, includeExportScript) {
       overflow-x: auto;
       max-width: 100%;
     }
-    
-    #auto-capture-info {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.8);
-      color: white;
-      padding: 20px;
-      border-radius: 10px;
-      z-index: 2000;
-      text-align: center;
-      display: none;
-    }
-  </style>`;
-
-  // Auto-export script - only include if requested
-  if (includeExportScript) {
-    html += `
+  </style>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      // Automatically trigger screenshot when page loads
-      setTimeout(function() {
-        // Show message and countdown
-        const infoBox = document.createElement('div');
-        infoBox.id = 'auto-capture-info';
-        infoBox.innerHTML = '<h2>Preparing to capture chart...</h2>' +
-                           '<p>Please do not close this window until the download completes.</p>' +
-                           '<p id="countdown">Capturing in 3 seconds...</p>';
-        document.body.appendChild(infoBox);
-        infoBox.style.display = 'block';
-        
-        // Countdown
-        let count = 3;
-        const countdownEl = document.getElementById('countdown');
-        const interval = setInterval(function() {
-          count--;
-          if (count <= 0) {
-            clearInterval(interval);
-            countdownEl.textContent = "Processing...";
-            setTimeout(captureChart, 500);
-          } else {
-            countdownEl.textContent = 'Capturing in ' + count + ' seconds...';
-          }
-        }, 1000);
-      }, 1000);
-      
-      // Function to capture chart
-      function captureChart() {
-        // Print the page which will open the system print dialog
-        window.print();
-        
-        // Update the message
-        document.getElementById('auto-capture-info').innerHTML = 
-          '<h2>Save as JPEG/PDF</h2>' +
-          '<p>Use the system print dialog to save as JPEG or PDF format.</p>' +
-          '<p>For PowerPoint: Select "Microsoft Print to PDF" or save as JPEG</p>' +
-          '<p>After saving, you can close this window.</p>';
-      }
-    });
-  </script>`;
-  }
-
-  html += `
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
+      // Export instructions interactions
       if (document.getElementById('hideInstructions')) {
         document.getElementById('hideInstructions').addEventListener('click', function() {
           document.getElementById('exportInstructions').style.display = 'none';
@@ -517,11 +510,7 @@ function generatePowerPointHTML(tasks, months, includeExportScript) {
     });
   </script>
 </head>
-<body>`;
-
-  // Only include export instructions box if NOT auto-exporting
-  if (!includeExportScript) {
-    html += `
+<body>
   <!-- Export instructions box -->
   <div id="exportInstructions" class="export-instructions">
     <button id="hideInstructions" class="hide-button">×</button>
@@ -533,10 +522,8 @@ function generatePowerPointHTML(tasks, months, includeExportScript) {
       <li>Paste into PowerPoint (Ctrl+V)</li>
       <li>OR <button id="printButton">Save as PDF</button></li>
     </ol>
-  </div>`;
-  }
+  </div>
 
-  html += `
   <div class="slide-container">
     <h1>Schedule Changes</h1>
     <div class="subtitle">${titleDateRange}</div>
@@ -546,64 +533,34 @@ function generatePowerPointHTML(tasks, months, includeExportScript) {
           <thead>
             <tr>
               <th class="task-cell">Task</th>
-  `;
-
-  // Add month headers
-  months.forEach(month => {
-    html += `<th colspan="${month.weeks.length}">${month.name}</th>`;
-  });
-
-  html += `
+              ${months.map(month => `<th colspan="${month.weeks.length}">${month.name}</th>`).join('')}
             </tr>
             <tr>
               <th class="task-cell">Start - End</th>
-  `;
-
-  // Add week headers
-  allWeeks.forEach(week => {
-    html += `<th class="week-cell">W${week.number}<br>${formatDate(week.start)}</th>`;
-  });
-
-  html += `
+              ${allWeeks.map(week => `<th class="week-cell">W${week.number}<br>${formatDate(week.start)}</th>`).join('')}
             </tr>
           </thead>
           <tbody>
-  `;
-
-  // Add task rows
-  formattedTasks.forEach((task, taskIndex) => {
-    html += `
+            ${formattedTasks.map(task => `
             <tr>
-              <td class="task-cell" title="${task.name}">
-                <div>${task.name}</div>
+              <td class="task-cell">
+                <div style="margin-bottom: 6px;">${task.name}</div>
                 <div class="date-info">${formatDate(task.originalDate)} - ${formatDate(task.newDate)}</div>
               </td>
-    `;
+              ${allWeeks.map(week => {
+    const originalDateInWeek = dateInWeek(task.originalDateStr, week);
+    const newDateInWeek = dateInWeek(task.newDateStr, week);
 
-    // Add task cells - ONLY for start and end dates, NO in-between
-    allWeeks.forEach(week => {
-      // Check if original or completion date falls in this week
-      const originalDateInWeek = dateInWeek(task.originalDateStr, week);
-      const newDateInWeek = dateInWeek(task.newDateStr, week);
+    let cellContent = '';
+    if (originalDateInWeek) {
+      cellContent = '<div class="bar-yellow"></div>';
+    } else if (newDateInWeek) {
+      cellContent = '<div class="bar-green"></div>';
+    }
 
-      let cellContent = '';
-
-      // Show yellow bar ONLY for original date weeks
-      if (originalDateInWeek) {
-        cellContent = `<div class="bar-yellow"></div>`;
-      }
-      // Show green bar ONLY for completion date weeks
-      else if (newDateInWeek) {
-        cellContent = `<div class="bar-green"></div>`;
-      }
-
-      html += `<td class="week-cell">${cellContent}</td>`;
-    });
-
-    html += `</tr>`;
-  });
-
-  html += `
+    return `<td class="week-cell">${cellContent}</td>`;
+  }).join('')}
+            </tr>`).join('')}
           </tbody>
         </table>
       </div>
@@ -645,20 +602,26 @@ function generatePowerPointHTML(tasks, months, includeExportScript) {
     }
   </style>
 </body>
-</html>
-  `;
-
-  return html;
+</html>`;
 }
 
-// Save HTML to a file
+/**
+ * Save HTML to a file
+ * @param {string} html - HTML content
+ * @param {string} filePath - Output file path
+ * @returns {string} File path
+ */
 function saveHtmlToFile(html, filePath) {
   fs.writeFileSync(filePath, html);
   return filePath;
 }
 
-// Try to open the HTML file in the default browser
-function openInBrowser(filePath, autoCapture = false) {
+/**
+ * Try to open the HTML file in the default browser
+ * @param {string} filePath - Path to HTML file
+ * @returns {boolean} True if browser opened successfully
+ */
+function openInBrowser(filePath) {
   const fileUrl = `file://${path.resolve(filePath)}`;
 
   try {
@@ -678,35 +641,28 @@ function openInBrowser(filePath, autoCapture = false) {
   }
 }
 
-// Main function to process CSV and generate PowerPoint HTML
-function processCSVAndGenerateChart(inputFilePath, outputFilePath, outputType = 'jpg') {
+/**
+ * Process a single CSV file and generate HTML
+ * @param {string} inputFilePath - Input CSV file path
+ * @param {string} outputFilePath - Output HTML file path
+ * @returns {string|null} Output file path or null if error
+ */
+function processCSVFile(inputFilePath, outputFilePath) {
   try {
-    // Normalize output type
-    outputType = outputType.toLowerCase();
-    const validOutputTypes = ['html', 'jpg', 'jpeg', 'pdf'];
+    console.log(`\nProcessing file: ${inputFilePath}`);
+    console.log(`Output will be saved to: ${outputFilePath}`);
 
-    if (!validOutputTypes.includes(outputType)) {
-      console.warn(`Warning: Output type "${outputType}" not recognized. Defaulting to "jpg".`);
-      outputType = 'jpg';
-    }
-
-    // Determine if we're doing auto-export
-    const autoExport = outputType === 'jpg' || outputType === 'jpeg' || outputType === 'pdf';
-
-    console.log(`Reading CSV file: ${inputFilePath}`);
+    // Read and parse CSV file
+    console.log(`Reading CSV file...`);
     const csvContent = fs.readFileSync(inputFilePath, 'utf8');
-
     console.log('Parsing CSV data...');
     const tasks = parseCSV(csvContent);
-
-    // Debug output - print all task dates
-    console.log('\nTask dates (sorted by original date):');
-    tasks.sort((a, b) => a.originalDate - b.originalDate)
-      .forEach((task, index) => {
-        console.log(`${index + 1}. ${task.name}: Original=${formatFullDate(task.originalDate)}, New=${formatFullDate(task.newDate)}`);
-      });
-
     console.log(`\nSuccessfully parsed ${tasks.length} tasks`);
+
+    if (tasks.length === 0) {
+      console.warn('No valid tasks found in the CSV file.');
+      return null;
+    }
 
     // Find overall date range
     const allDates = tasks.flatMap(task => [task.originalDate, task.newDate]);
@@ -720,120 +676,155 @@ function processCSVAndGenerateChart(inputFilePath, outputFilePath, outputType = 
     const endDate = new Date(maxDate);
     endDate.setDate(endDate.getDate() + 14);
 
-    console.log('\nGenerating chart for date range:');
+    console.log('Generating chart for date range:');
     console.log(`Start: ${formatFullDate(startDate)}`);
     console.log(`End: ${formatFullDate(endDate)}`);
 
-    // Get all weeks in the date range
+    // Get all weeks in the date range and group by month
     const weeks = getWeeks(startDate, endDate);
-    console.log(`\nGenerated ${weeks.length} weeks`);
-
-    // Group weeks by month
+    console.log(`Generated ${weeks.length} weeks`);
     const months = groupWeeksByMonth(weeks);
-    console.log(`\nSpanning ${months.length} months:`);
-    months.forEach(month => {
-      console.log(`${month.name}: ${month.weeks.length} weeks`);
-    });
+    console.log(`Spanning ${months.length} months`);
 
-    // Determine output file path
-    const outputExt = path.extname(outputFilePath).toLowerCase();
-    let htmlOutputPath;
+    // Generate HTML and save to file
+    console.log('Generating PowerPoint-optimized chart...');
+    const htmlContent = generatePowerPointHTML(tasks, months);
 
-    // Use the provided output path, but ensure it has the correct extension
-    if (outputType === 'html') {
-      if (!outputExt || (outputExt !== '.html' && outputExt !== '.htm')) {
-        htmlOutputPath = `${outputFilePath}.html`;
-      } else {
-        htmlOutputPath = outputFilePath;
-      }
-    } else if (outputType === 'pdf') {
-      htmlOutputPath = outputExt === '.pdf' ? outputFilePath : `${outputFilePath}.pdf`;
-      // Remove extension for the HTML path
-      htmlOutputPath = `${htmlOutputPath.slice(0, -4)}_export.html`;
-    } else {
-      // JPG/JPEG case
-      htmlOutputPath = outputExt === '.jpg' || outputExt === '.jpeg' ?
-        `${outputFilePath.slice(0, -outputExt.length)}_export.html` :
-        `${outputFilePath}_export.html`;
+    // Create output directory if it doesn't exist
+    const outputDir = path.dirname(outputFilePath);
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+      console.log(`Created output directory: ${outputDir}`);
     }
 
-    // Generate PowerPoint HTML without auto-export script
-    console.log('\nGenerating PowerPoint-optimized chart...');
-    const htmlContent = generatePowerPointHTML(tasks, months, false);
+    console.log(`Saving HTML to: ${outputFilePath}`);
+    saveHtmlToFile(htmlContent, outputFilePath);
 
-    // Save to HTML file
-    console.log(`\nSaving HTML to: ${htmlOutputPath}`);
-    saveHtmlToFile(htmlContent, htmlOutputPath);
-
-    // Open in browser
-    const browserOpened = openInBrowser(htmlOutputPath);
-
-    console.log(`\nProcess completed!`);
-
-    // Provide clear instructions to the user regardless of output type
-    if (!browserOpened) {
-      console.log(`\nIMPORTANT: Please open this file in your browser manually: ${htmlOutputPath}`);
-    }
-
-    if (outputType === 'html') {
-      console.log('\nHTML file has been generated successfully.');
-    } else {
-      const targetFilename = outputExt ? outputFilePath : `${outputFilePath}.${outputType}`;
-      console.log(`\n=== IMPORTANT: Steps to create your ${outputType.toUpperCase()} file ===`);
-      console.log('1. The browser window should now be open with your chart.');
-      console.log('2. Press F11 to enter full-screen mode for best quality.');
-      console.log('3. To create a JPG:');
-      console.log('   - Use screenshot tool (Print Screen key, Snipping Tool, or similar)');
-      console.log('   - Save the screenshot as JPG to this location:');
-      console.log(`     ${targetFilename}`);
-      console.log('\nAlternatively, you can use the browser print function (Ctrl+P):');
-      console.log('1. Select "Save as PDF" option if available');
-      console.log('2. For JPG, you can use third-party PDF to JPG converters');
-      console.log('3. Save to the desired location');
-    }
-
-    return htmlOutputPath;
-
+    return outputFilePath;
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error(`Error processing ${inputFilePath}: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Process all CSV files in a directory
+ * @param {string} inputDir - Input directory path
+ * @param {string} outputDir - Output directory path
+ * @returns {Array} Array of processed file objects
+ */
+function processDirectory(inputDir, outputDir) {
+  try {
+    console.log(`Processing all CSV files in directory: ${inputDir}`);
+    console.log(`Output will be saved to directory: ${outputDir}`);
+
+    // Check if input directory exists
+    if (!fs.existsSync(inputDir)) {
+      console.error(`Input directory does not exist: ${inputDir}`);
+      process.exit(1);
+    }
+
+    // Create output directory if it doesn't exist
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+      console.log(`Created output directory: ${outputDir}`);
+    }
+
+    // Get all CSV files in input directory
+    const files = fs.readdirSync(inputDir).filter(file =>
+      file.toLowerCase().endsWith('.csv')
+    );
+
+    if (files.length === 0) {
+      console.warn(`No CSV files found in directory: ${inputDir}`);
+      process.exit(0);
+    }
+
+    console.log(`Found ${files.length} CSV files to process`);
+
+    // Process each CSV file
+    const results = [];
+
+    for (const file of files) {
+      const inputFilePath = path.join(inputDir, file);
+      const outputFileName = path.basename(file, path.extname(file)) + '.html';
+      const outputFilePath = path.join(outputDir, outputFileName);
+
+      const result = processCSVFile(inputFilePath, outputFilePath);
+      if (result) {
+        results.push({
+          input: inputFilePath,
+          output: result
+        });
+      }
+    }
+
+    // Print summary
+    console.log('\n=== Processing Summary ===');
+    console.log(`Successfully processed ${results.length} of ${files.length} files`);
+
+    // Open the first HTML file in the browser if any were successfully generated
+    if (results.length > 0) {
+      console.log('\nOpening first HTML file in browser...');
+      openInBrowser(results[0].output);
+
+      console.log('\nAll HTML files:');
+      results.forEach((result, index) => {
+        console.log(`${index + 1}. ${result.output}`);
+      });
+    }
+
+    return results;
+  } catch (error) {
+    console.error(`Error processing directory: ${error.message}`);
     process.exit(1);
   }
 }
 
-// Parse command line arguments
+/**
+ * Parse command line arguments
+ * @returns {Object} Object with inputDir and outputDir properties
+ */
 function parseArgs() {
   const args = process.argv.slice(2);
 
-  if (args.length < 1) {
-    console.error('Usage: node tasks-chart.js <input-csv-file> [output-file] [output-type]');
-    console.error('Example: node tasks-chart.js tasks.csv chart.jpeg jpg');
-    console.error('Output types: html, jpg/jpeg, pdf (default: jpg)');
-    process.exit(1);
+  // Default directories
+  let inputDir = 'input';
+  let outputDir = 'output';
+
+  // Check for arguments
+  if (args.length >= 1) {
+    inputDir = args[0];
   }
 
-  const inputFilePath = args[0];
-  let outputFilePath = args[1];
-  let outputType = args[2] || 'jpg';
-
-  // If no output file specified, use ScheduleChanges.jpg
-  if (!outputFilePath) {
-    outputFilePath = path.join(
-      process.cwd(),
-      "ScheduleChanges.jpg"
-    );
+  if (args.length >= 2) {
+    outputDir = args[1];
   }
 
-  return { inputFilePath, outputFilePath, outputType };
+  return { inputDir, outputDir };
+}
+
+/**
+ * Main function
+ */
+function main() {
+  const { inputDir, outputDir } = parseArgs();
+
+  console.log('=== Schedule Changes HTML Generator ===');
+  console.log(`Input directory: ${inputDir}`);
+  console.log(`Output directory: ${outputDir}`);
+
+  processDirectory(inputDir, outputDir);
 }
 
 // Run the script if called directly
 if (require.main === module) {
-  const { inputFilePath, outputFilePath, outputType } = parseArgs();
-  processCSVAndGenerateChart(inputFilePath, outputFilePath, outputType);
+  main();
 } else {
   // Export for use in other modules
   module.exports = {
-    processCSVAndGenerateChart,
+    processCSVFile,
+    processDirectory,
     parseCSV,
     getWeeks,
     groupWeeksByMonth

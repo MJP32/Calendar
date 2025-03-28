@@ -1,0 +1,427 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Schedule Changes</title>
+  <style>
+    /* PowerPoint optimized styles */
+    body { 
+      font-family: Arial, sans-serif; 
+      margin: 0; 
+      padding: 0;
+      background-color: white;
+    }
+    
+    /* 16:9 PowerPoint slide aspect ratio wrapper */
+    .slide-container {
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      position: relative;
+      padding: 40px;
+      box-sizing: border-box;
+    }
+    
+    @media print {
+      .slide-container {
+        width: 100%;
+        height: auto;
+      }
+    }
+    
+    .chart-container { 
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    h1 { 
+      color: #2b6cb0; 
+      font-size: 48px;
+      margin: 0 0 20px 0;
+      text-align: center;
+      font-weight: bold;
+    }
+    
+    .subtitle {
+      color: #4a5568;
+      font-size: 28px;
+      margin: 0 0 30px 0;
+      text-align: center;
+      font-weight: bold;
+    }
+    
+    table { 
+      border-collapse: collapse; 
+      width: 100%;
+      font-size: 20px;
+      table-layout: fixed;
+    }
+    
+    th, td { 
+      border: 1px solid #cbd5e0; 
+      padding: 10px; 
+      text-align: center; 
+    }
+    
+    th { 
+      background-color: #4299e1; 
+      color: white; 
+      font-weight: bold;
+    }
+    
+    .task-cell { 
+      text-align: left; 
+      font-weight: 600; 
+      background: white;
+      width: 450px;
+      white-space: normal;
+      overflow: visible;
+      word-wrap: break-word;
+      font-size: 18px;
+      line-height: 1.3;
+    }
+    
+    .week-cell {
+      width: 70px; /* Fixed width for week cells */
+    }
+    
+    tr:nth-child(even) { background-color: #f0f7ff; }
+    tr:nth-child(odd) { background-color: #ffffff; }
+    
+    .bar-yellow { 
+      background-color: #ecc94b; 
+      border-radius: 3px; 
+      height: 24px; 
+      border: 1px solid #d69e2e;
+      width: 100%;
+    }
+    
+    .bar-green { 
+      background-color: #48bb78; 
+      border-radius: 3px; 
+      height: 24px; 
+      border: 1px solid #2f855a;
+      width: 100%;
+    }
+    
+    .legend { 
+      display: flex; 
+      gap: 40px; 
+      justify-content: center; 
+      margin-top: 30px; 
+    }
+    
+    .legend-item { 
+      display: flex; 
+      align-items: center;
+      font-size: 24px;
+    }
+    
+    .legend-color { 
+      width: 24px; 
+      height: 24px; 
+      border-radius: 3px; 
+      margin-right: 10px; 
+    }
+    
+    .date-info { 
+      font-size: 14px; 
+      color: #666;
+      font-weight: normal;
+    }
+    
+    /* Export instructions */
+    .export-instructions {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #f8f9fa;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 14px;
+      width: 300px;
+      z-index: 1000;
+    }
+    
+    .export-instructions h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
+    
+    .export-instructions button {
+      background: #4299e1;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    
+    .export-instructions button:hover {
+      background: #3182ce;
+    }
+    
+    .export-instructions .hide-button {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      color: #666;
+    }
+    
+    /* Table wrapper for horizontal scrolling */
+    .table-wrapper {
+      overflow-x: auto;
+      max-width: 100%;
+    }
+  </style>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Export instructions interactions
+      if (document.getElementById('hideInstructions')) {
+        document.getElementById('hideInstructions').addEventListener('click', function() {
+          document.getElementById('exportInstructions').style.display = 'none';
+        });
+      }
+      
+      // Print button
+      if (document.getElementById('printButton')) {
+        document.getElementById('printButton').addEventListener('click', function() {
+          if (document.getElementById('exportInstructions')) {
+            document.getElementById('exportInstructions').style.display = 'none';
+          }
+          window.print();
+          setTimeout(function() {
+            if (document.getElementById('exportInstructions')) {
+              document.getElementById('exportInstructions').style.display = 'block';
+            }
+          }, 1000);
+        });
+      }
+      
+      // Fullscreen button
+      if (document.getElementById('fullscreenButton')) {
+        document.getElementById('fullscreenButton').addEventListener('click', function() {
+          if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen();
+          } else if (document.documentElement.webkitRequestFullscreen) {
+            document.documentElement.webkitRequestFullscreen();
+          } else if (document.documentElement.msRequestFullscreen) {
+            document.documentElement.msRequestFullscreen();
+          }
+        });
+      }
+      
+      // Screenshot button
+      if (document.getElementById('screenshotButton')) {
+        document.getElementById('screenshotButton').addEventListener('click', function() {
+          // Hide the instructions first
+          if (document.getElementById('exportInstructions')) {
+            document.getElementById('exportInstructions').style.display = 'none';
+          }
+          
+          // Let the user know we're ready for screenshot
+          alert('The page is now ready for a screenshot. You can use PrintScreen key or your system screenshot tool to capture the image. Click OK to continue.');
+          
+          // Show instructions again after screenshot
+          if (document.getElementById('exportInstructions')) {
+            document.getElementById('exportInstructions').style.display = 'block';
+          }
+        });
+      }
+    });
+  </script>
+</head>
+<body>
+  <!-- Export instructions box -->
+  <div id="exportInstructions" class="export-instructions">
+    <button id="hideInstructions" class="hide-button">×</button>
+    <h3>PowerPoint Export</h3>
+    <ol>
+      <li><button id="fullscreenButton">Go Fullscreen</button></li>
+      <li><button id="screenshotButton">Prepare for Screenshot</button></li>
+      <li>Take a screenshot (PrtScn)</li>
+      <li>Paste into PowerPoint (Ctrl+V)</li>
+      <li>OR <button id="printButton">Save as PDF</button></li>
+    </ol>
+  </div>
+
+  <div class="slide-container">
+    <h1>Schedule Changes</h1>
+    <div class="subtitle">3/25 - 11/20</div>
+    <div class="chart-container">
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th class="task-cell">Task</th>
+              <th colspan="4">March 2025</th><th colspan="4">April 2025</th><th colspan="4">May 2025</th><th colspan="5">June 2025</th><th colspan="4">July 2025</th><th colspan="5">August 2025</th><th colspan="4">September 2025</th><th colspan="4">October 2025</th><th colspan="5">November 2025</th>
+            </tr>
+            <tr>
+              <th class="task-cell">Start - End</th>
+              <th class="week-cell">W1<br>3/9</th><th class="week-cell">W2<br>3/16</th><th class="week-cell">W3<br>3/23</th><th class="week-cell">W4<br>3/30</th><th class="week-cell">W5<br>4/6</th><th class="week-cell">W6<br>4/13</th><th class="week-cell">W7<br>4/20</th><th class="week-cell">W8<br>4/27</th><th class="week-cell">W9<br>5/4</th><th class="week-cell">W10<br>5/11</th><th class="week-cell">W11<br>5/18</th><th class="week-cell">W12<br>5/25</th><th class="week-cell">W13<br>6/1</th><th class="week-cell">W14<br>6/8</th><th class="week-cell">W15<br>6/15</th><th class="week-cell">W16<br>6/22</th><th class="week-cell">W17<br>6/29</th><th class="week-cell">W18<br>7/6</th><th class="week-cell">W19<br>7/13</th><th class="week-cell">W20<br>7/20</th><th class="week-cell">W21<br>7/27</th><th class="week-cell">W22<br>8/3</th><th class="week-cell">W23<br>8/10</th><th class="week-cell">W24<br>8/17</th><th class="week-cell">W25<br>8/24</th><th class="week-cell">W26<br>8/31</th><th class="week-cell">W27<br>9/7</th><th class="week-cell">W28<br>9/14</th><th class="week-cell">W29<br>9/21</th><th class="week-cell">W30<br>9/28</th><th class="week-cell">W31<br>10/5</th><th class="week-cell">W32<br>10/12</th><th class="week-cell">W33<br>10/19</th><th class="week-cell">W34<br>10/26</th><th class="week-cell">W35<br>11/2</th><th class="week-cell">W36<br>11/9</th><th class="week-cell">W37<br>11/16</th><th class="week-cell">W38<br>11/23</th><th class="week-cell">W39<br>11/30</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td class="task-cell">
+                <div style="margin-bottom: 6px;">Initial Team Collaboration Session</div>
+                <div class="date-info">3/25 - 7/12</div>
+              </td>
+              <td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-yellow"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-green"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td>
+            </tr>
+            <tr>
+              <td class="task-cell">
+                <div style="margin-bottom: 6px;">UX Design Documentation Review</div>
+                <div class="date-info">3/30 - 8/17</div>
+              </td>
+              <td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-yellow"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-green"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td>
+            </tr>
+            <tr>
+              <td class="task-cell">
+                <div style="margin-bottom: 6px;">Stakeholder Requirements Validation</div>
+                <div class="date-info">4/5 - 9/28</div>
+              </td>
+              <td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-yellow"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-green"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td>
+            </tr>
+            <tr>
+              <td class="task-cell">
+                <div style="margin-bottom: 6px;">Executive Project Presentation</div>
+                <div class="date-info">4/8 - 6/30</div>
+              </td>
+              <td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-yellow"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-green"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td>
+            </tr>
+            <tr>
+              <td class="task-cell">
+                <div style="margin-bottom: 6px;">Infrastructure Architecture Planning</div>
+                <div class="date-info">4/10 - 9/3</div>
+              </td>
+              <td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-yellow"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-green"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td>
+            </tr>
+            <tr>
+              <td class="task-cell">
+                <div style="margin-bottom: 6px;">First Development Milestone Review</div>
+                <div class="date-info">4/15 - 8/28</div>
+              </td>
+              <td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-yellow"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-green"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td>
+            </tr>
+            <tr>
+              <td class="task-cell">
+                <div style="margin-bottom: 6px;">Technical Debt Evaluation</div>
+                <div class="date-info">4/18 - 7/25</div>
+              </td>
+              <td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-yellow"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-green"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td>
+            </tr>
+            <tr>
+              <td class="task-cell">
+                <div style="margin-bottom: 6px;">Mid-Project Assessment</div>
+                <div class="date-info">4/22 - 9/10</div>
+              </td>
+              <td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-yellow"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-green"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td>
+            </tr>
+            <tr>
+              <td class="task-cell">
+                <div style="margin-bottom: 6px;">Second Sprint Feature Demo</div>
+                <div class="date-info">4/28 - 7/5</div>
+              </td>
+              <td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-yellow"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-green"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td>
+            </tr>
+            <tr>
+              <td class="task-cell">
+                <div style="margin-bottom: 6px;">QA Testing Implementation</div>
+                <div class="date-info">4/30 - 10/15</div>
+              </td>
+              <td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-yellow"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-green"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td>
+            </tr>
+            <tr>
+              <td class="task-cell">
+                <div style="margin-bottom: 6px;">Cross-Browser Compatibility Testing</div>
+                <div class="date-info">5/8 - 8/12</div>
+              </td>
+              <td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-yellow"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-green"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td>
+            </tr>
+            <tr>
+              <td class="task-cell">
+                <div style="margin-bottom: 6px;">Documentation and Training Completion</div>
+                <div class="date-info">5/15 - 11/2</div>
+              </td>
+              <td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-yellow"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-green"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td>
+            </tr>
+            <tr>
+              <td class="task-cell">
+                <div style="margin-bottom: 6px;">Final Stakeholder Sign-off</div>
+                <div class="date-info">5/20 - 8/23</div>
+              </td>
+              <td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-yellow"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-green"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td>
+            </tr>
+            <tr>
+              <td class="task-cell">
+                <div style="margin-bottom: 6px;">Production Environment Setup</div>
+                <div class="date-info">5/25 - 9/18</div>
+              </td>
+              <td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-yellow"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-green"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td>
+            </tr>
+            <tr>
+              <td class="task-cell">
+                <div style="margin-bottom: 6px;">Application Deployment</div>
+                <div class="date-info">5/31 - 10/7</div>
+              </td>
+              <td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-yellow"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-green"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td>
+            </tr>
+            <tr>
+              <td class="task-cell">
+                <div style="margin-bottom: 6px;">Post-Implementation Analysis</div>
+                <div class="date-info">6/15 - 11/20</div>
+              </td>
+              <td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-yellow"></div></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"></td><td class="week-cell"><div class="bar-green"></div></td><td class="week-cell"></td><td class="week-cell"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-color bar-yellow"></div>
+          <span>Original Date</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color bar-green"></div>
+          <span>Completion Date</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Print stylesheet - Format specifically for printing/PDF export -->
+  <style type="text/css" media="print">
+    @page {
+      size: landscape;
+      margin: 0;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+    }
+    
+    .export-instructions, .download-button {
+      display: none !important;
+    }
+    
+    .slide-container {
+      width: 100%;
+      height: 100%;
+      padding: 0;
+      margin: 0;
+    }
+  </style>
+</body>
+</html>

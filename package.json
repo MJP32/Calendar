@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "node-html-to-image": "^5.0.0",
+    "puppeteer": "^24.4.0"
+  }
+}
