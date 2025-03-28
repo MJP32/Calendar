@@ -276,7 +276,7 @@ function generatePowerPointHTML(tasks, months) {
   <meta charset="UTF-8">
   <title>Schedule Changes</title>
   <style>
-    /* PowerPoint optimized styles */
+    /* Basic styling */
     body { 
       font-family: Arial, sans-serif; 
       margin: 0; 
@@ -305,6 +305,13 @@ function generatePowerPointHTML(tasks, months) {
       width: 100%;
       height: 100%;
       overflow: hidden;
+      padding: 20px;
+      box-sizing: border-box;
+      background-color: white;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+      border-bottom: 4px solid #3182ce;
+      border-radius: 0;
     }
     
     h1 { 
@@ -323,44 +330,70 @@ function generatePowerPointHTML(tasks, months) {
       font-weight: bold;
     }
     
+    /* Only keep bottom border, no left/top/right borders */
     table { 
       border-collapse: collapse; 
       width: 100%;
       font-size: 20px;
       table-layout: fixed;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      margin-bottom: 20px;
+      border: none;
+      border-bottom: 4px solid #3182ce;
     }
     
-    th, td { 
-      border: 1px solid #cbd5e0; 
-      padding: 10px; 
-      text-align: center; 
+    td, th {
+      border: 1px solid #cbd5e0;
+      padding: 10px;
+      text-align: center;
     }
     
     th { 
       background-color: #4299e1; 
       color: white; 
       font-weight: bold;
+      border-bottom: 2px solid #3182ce;
     }
     
+    /* Task cell styling */
     .task-cell { 
       text-align: left; 
       font-weight: 600; 
-      background: white;
+      background: #f8fafc;
       width: 450px;
       white-space: normal;
       overflow: visible;
       word-wrap: break-word;
       font-size: 18px;
-      line-height: 1.3;
+      line-height: 1.4;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 14px 12px;
+      border-bottom: 2px solid #3182ce;
+    }
+    
+    .task-name {
+      color: #2d3748;
+      margin-bottom: 8px;
+      display: block;
+      font-weight: 600;
     }
     
     .week-cell {
       width: 70px; /* Fixed width for week cells */
     }
     
+    tbody tr:last-child td {
+      border-bottom: 4px solid #3182ce !important;
+    }
+    
     tr:nth-child(even) { background-color: #f0f7ff; }
     tr:nth-child(odd) { background-color: #ffffff; }
     
+    tr:hover td.task-cell {
+      background-color: #ebf8ff;
+    }
+    
+    /* Color bars */
     .bar-yellow { 
       background-color: #ecc94b; 
       border-radius: 3px; 
@@ -377,6 +410,15 @@ function generatePowerPointHTML(tasks, months) {
       width: 100%;
     }
     
+    .date-info { 
+      font-size: 14px; 
+      color: #718096;
+      font-weight: normal;
+      padding-top: 3px;
+      border-top: 1px dotted #e2e8f0;
+    }
+    
+    /* Legend styling */
     .legend { 
       display: flex; 
       gap: 40px; 
@@ -395,12 +437,6 @@ function generatePowerPointHTML(tasks, months) {
       height: 24px; 
       border-radius: 3px; 
       margin-right: 10px; 
-    }
-    
-    .date-info { 
-      font-size: 14px; 
-      color: #666;
-      font-weight: normal;
     }
     
     /* Export instructions */
@@ -544,7 +580,7 @@ function generatePowerPointHTML(tasks, months) {
             ${formattedTasks.map(task => `
             <tr>
               <td class="task-cell">
-                <div style="margin-bottom: 6px;">${task.name}</div>
+                <div class="task-name">${task.name}</div>
                 <div class="date-info">${formatDate(task.originalDate)} - ${formatDate(task.newDate)}</div>
               </td>
               ${allWeeks.map(week => {
@@ -649,6 +685,12 @@ function openInBrowser(filePath) {
  */
 function processCSVFile(inputFilePath, outputFilePath) {
   try {
+    // Check if input file exists
+    if (!fs.existsSync(inputFilePath)) {
+      console.error(`Input file does not exist: ${inputFilePath}`);
+      return null;
+    }
+
     console.log(`\nProcessing file: ${inputFilePath}`);
     console.log(`Output will be saved to: ${outputFilePath}`);
 
@@ -783,38 +825,96 @@ function processDirectory(inputDir, outputDir) {
 
 /**
  * Parse command line arguments
- * @returns {Object} Object with inputDir and outputDir properties
+ * @returns {Object} Object with inputPath, outputPath and mode properties
  */
 function parseArgs() {
   const args = process.argv.slice(2);
 
-  // Default directories
-  let inputDir = 'input';
-  let outputDir = 'output';
-
-  // Check for arguments
-  if (args.length >= 1) {
-    inputDir = args[0];
+  if (args.length === 0) {
+    console.error('\nERROR: No input specified.');
+    console.error('Usage:');
+    console.error('  For single file: node tasks-chart.js input.csv [output.html]');
+    console.error('  For directory:   node tasks-chart.js input-dir [output-dir]');
+    process.exit(1);
   }
 
-  if (args.length >= 2) {
-    outputDir = args[1];
+  const inputPath = args[0];
+  let outputPath = args[1];
+
+  // Check if input path exists
+  if (!fs.existsSync(inputPath)) {
+    console.error(`\nERROR: Input path does not exist: ${inputPath}`);
+    process.exit(1);
   }
 
-  return { inputDir, outputDir };
+  // Determine if input is file or directory
+  const isDirectory = fs.statSync(inputPath).isDirectory();
+
+  // Set defaults and validate
+  if (isDirectory) {
+    // For directory mode
+    const inputDir = inputPath;
+    const outputDir = outputPath || 'output';
+
+    // Count CSV files in directory
+    const csvFiles = fs.readdirSync(inputDir).filter(file =>
+      file.toLowerCase().endsWith('.csv')
+    );
+
+    if (csvFiles.length === 0) {
+      console.error(`\nERROR: No CSV files found in directory: ${inputDir}`);
+      console.error('Please ensure there are CSV files in the input directory.');
+      process.exit(1);
+    }
+
+    return {
+      inputPath: inputDir,
+      outputPath: outputDir,
+      mode: 'directory'
+    };
+  } else {
+    // For single file mode
+    const inputFile = inputPath;
+
+    // Default output is input filename with .html extension
+    if (!outputPath) {
+      const inputBasename = path.basename(inputFile, path.extname(inputFile));
+      outputPath = `${inputBasename}.html`;
+    }
+
+    return {
+      inputPath: inputFile,
+      outputPath: outputPath,
+      mode: 'file'
+    };
+  }
 }
 
 /**
  * Main function
  */
 function main() {
-  const { inputDir, outputDir } = parseArgs();
+  const { inputPath, outputPath, mode } = parseArgs();
 
   console.log('=== Schedule Changes HTML Generator ===');
-  console.log(`Input directory: ${inputDir}`);
-  console.log(`Output directory: ${outputDir}`);
 
-  processDirectory(inputDir, outputDir);
+  if (mode === 'directory') {
+    console.log(`Input directory: ${inputPath}`);
+    console.log(`Output directory: ${outputPath}`);
+    processDirectory(inputPath, outputPath);
+  } else {
+    console.log(`Input file: ${inputPath}`);
+    console.log(`Output file: ${outputPath}`);
+    const result = processCSVFile(inputPath, outputPath);
+
+    if (result) {
+      console.log('\nHTML file generated successfully!');
+      openInBrowser(result);
+    } else {
+      console.error('\nFailed to generate HTML file.');
+      process.exit(1);
+    }
+  }
 }
 
 // Run the script if called directly
