@@ -1,4 +1,4 @@
-// tasks-chart.js - Improved task name formatting with purple box for same-week dates
+// tasks-chart.js - Improved task name formatting with purple box for same-week dates and arrows between dates
 const fs = require('fs');
 const path = require('path');
 const child_process = require('child_process');
@@ -277,13 +277,20 @@ function generatePowerPointHTML(tasks, months) {
     });
   });
 
-  // Convert task dates to formatted strings for comparison
-  const formattedTasks = tasks.map(task => ({
-    ...task,
-    originalDateStr: formatDetailedDate(task.originalDate),
-    newDateStr: formatDetailedDate(task.newDate),
-    sameWeek: datesInSameWeek(task.originalDate, task.newDate)
-  }));
+  // Convert task dates to formatted strings for comparison and calculate days between dates
+  const formattedTasks = tasks.map(task => {
+    // Calculate the number of days between dates
+    const timeDiff = Math.abs(task.newDate.getTime() - task.originalDate.getTime());
+    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+    return {
+      ...task,
+      originalDateStr: formatDetailedDate(task.originalDate),
+      newDateStr: formatDetailedDate(task.newDate),
+      sameWeek: datesInSameWeek(task.originalDate, task.newDate),
+      daysBetween: daysDiff
+    };
+  });
 
   // Generate HTML content
   let html = `
@@ -354,6 +361,7 @@ function generatePowerPointHTML(tasks, months) {
     
     .week-cell {
       width: 70px;
+      position: relative;
     }
     
     tr:nth-child(even) { 
@@ -369,6 +377,8 @@ function generatePowerPointHTML(tasks, months) {
       height: 24px; 
       border: 1px solid #d69e2e;
       width: 100%;
+      position: relative;
+      z-index: 1;
     }
     
     .bar-green { 
@@ -376,6 +386,8 @@ function generatePowerPointHTML(tasks, months) {
       height: 24px; 
       border: 1px solid #2f855a;
       width: 100%;
+      position: relative;
+      z-index: 1;
     }
     
     .bar-purple { 
@@ -383,6 +395,8 @@ function generatePowerPointHTML(tasks, months) {
       height: 24px; 
       border: 1px solid #805ad5;
       width: 100%;
+      position: relative;
+      z-index: 1;
     }
     
     .date-info { 
@@ -391,6 +405,56 @@ function generatePowerPointHTML(tasks, months) {
       border-top: 1px dotted #cbd5e0;
       padding-top: 5px;
       margin-top: 5px;
+    }
+    
+    .arrow-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 100%;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    
+    .arrow-line {
+      position: absolute;
+      top: 31px; /* Position in the middle of the bar (vertically centered) */
+      height: 2px;
+      background-color: #4a5568;
+      z-index: 2;
+    }
+    
+    .arrow-head {
+      position: absolute;
+      top: 28px; /* Position arrow head to match the line */
+      width: 0;
+      height: 0;
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+      border-left: 10px solid #4a5568;
+      z-index: 2;
+      /* Fix alignment of arrow head with arrow line */
+      margin-right: -1px;
+    }
+    
+    .days-label {
+      position: absolute;
+      top: 5px; /* Position in the upper area of the cell */
+      background-color: white;
+      padding: 2px 4px;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 12px;
+      color: #4a5568;
+      border: 1px solid #4a5568;
+      white-space: nowrap;
+      z-index: 3;
+      transform: translateX(-50%);
+      left: 50%;
     }
     
     .legend { 
@@ -463,11 +527,27 @@ function generatePowerPointHTML(tasks, months) {
 `;
 
     // Add task cells
-    allWeeks.forEach(week => {
+    let originalWeekIndex = -1;
+    let newWeekIndex = -1;
+
+    // First pass - find the weeks that contain the dates
+    allWeeks.forEach((week, weekIndex) => {
+      if (dateInWeek(task.originalDateStr, week)) {
+        originalWeekIndex = weekIndex;
+      }
+      if (dateInWeek(task.newDateStr, week)) {
+        newWeekIndex = weekIndex;
+      }
+    });
+
+    // Second pass - render cells with appropriate content
+    allWeeks.forEach((week, weekIndex) => {
       const originalDateInWeek = dateInWeek(task.originalDateStr, week);
       const newDateInWeek = dateInWeek(task.newDateStr, week);
 
       let cellContent = '';
+
+      // Determine the cell color content
       if (originalDateInWeek && newDateInWeek && task.sameWeek) {
         // Both dates are in the same week - use purple
         cellContent = '<div class="bar-purple"></div>';
@@ -477,7 +557,88 @@ function generatePowerPointHTML(tasks, months) {
         cellContent = '<div class="bar-green"></div>';
       }
 
-      html += `<td class="week-cell">${cellContent}</td>`;
+      // Add arrow elements - ALL tasks should have arrows
+      let arrowContent = '';
+
+      // If we have both dates
+      if (originalWeekIndex !== -1 && newWeekIndex !== -1) {
+        if (task.sameWeek) {
+          // No arrow for same week tasks
+          // Just leave the purple bar to show both dates
+        } else if (originalWeekIndex < newWeekIndex) {
+          // Normal case: original date is before new date
+          if (weekIndex === originalWeekIndex) {
+            // Start of the arrow - shorter, only extending a bit to the right
+            arrowContent = `
+              <div class="arrow-container">
+                <div class="arrow-line" style="width: 10%; left: 90%;"></div>
+              </div>
+            `;
+          } else if (weekIndex === newWeekIndex) {
+            // End of the arrow - shorter, only extending a bit to the left
+            arrowContent = `
+              <div class="arrow-container">
+                <div class="arrow-line" style="width: 10%; right: 90%;"></div>
+                <div class="arrow-head" style="right: 90%;"></div>
+              </div>
+            `;
+          } else if (weekIndex > originalWeekIndex && weekIndex < newWeekIndex) {
+            // Middle of the arrow
+            arrowContent = `
+              <div class="arrow-container">
+                <div class="arrow-line" style="width: 100%;"></div>
+              </div>
+            `;
+          }
+
+          // Add days label in the middle of the arrow
+          if (weekIndex === Math.floor((originalWeekIndex + newWeekIndex) / 2)) {
+            arrowContent = `
+              <div class="arrow-container">
+                <div class="arrow-line" style="width: 100%;"></div>
+                <div class="days-label">${task.daysBetween}d</div>
+              </div>
+            `;
+          }
+        } else if (originalWeekIndex > newWeekIndex) {
+          // Reverse case: new date is before original date (for completeness)
+          if (weekIndex === originalWeekIndex) {
+            // Start of the arrow (from the far left side) - shorter
+            arrowContent = `
+              <div class="arrow-container">
+                <div class="arrow-line" style="width: 10%; right: 90%;"></div>
+              </div>
+            `;
+          } else if (weekIndex === newWeekIndex) {
+            // End of the arrow (from the far right) - shorter
+            arrowContent = `
+              <div class="arrow-container">
+                <div class="arrow-line" style="width: 10%; left: 90%;"></div>
+                <div class="arrow-head" style="left: 90%; transform: rotate(180deg); transform-origin: center;"></div>
+              </div>
+            `;
+          } else if (weekIndex < originalWeekIndex && weekIndex > newWeekIndex) {
+            // Middle of the arrow
+            arrowContent = `
+              <div class="arrow-container">
+                <div class="arrow-line" style="width: 100%;"></div>
+              </div>
+            `;
+          }
+
+          // Add days label in the middle of the arrow
+          if (weekIndex === Math.floor((originalWeekIndex + newWeekIndex) / 2)) {
+            arrowContent = `
+              <div class="arrow-container">
+                <div class="arrow-line" style="width: 100%;"></div>
+                <div class="days-label">${task.daysBetween}d</div>
+              </div>
+            `;
+          }
+        }
+      }
+
+      html += `<td class="week-cell">${cellContent}${arrowContent}</td>`;
     });
 
     html += `
