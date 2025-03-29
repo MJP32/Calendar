@@ -1,4 +1,4 @@
-// tasks-chart.js - Improved task name formatting
+// tasks-chart.js - Improved task name formatting with purple box for same-week dates
 const fs = require('fs');
 const path = require('path');
 const child_process = require('child_process');
@@ -159,6 +159,28 @@ function formatDetailedDate(date) {
   return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
 }
 
+// Check if two dates are in the same week
+function datesInSameWeek(date1, date2) {
+  // Clone dates to not modify originals
+  const d1 = new Date(date1);
+  const d2 = new Date(date2);
+
+  // Set to start of day
+  d1.setHours(0, 0, 0, 0);
+  d2.setHours(0, 0, 0, 0);
+
+  // Get the day of the week (0-6, where 0 is Sunday)
+  const day1 = d1.getDay();
+  const day2 = d2.getDay();
+
+  // Set to the start of their respective weeks (Sunday)
+  d1.setDate(d1.getDate() - day1);
+  d2.setDate(d2.getDate() - day2);
+
+  // Compare start of week
+  return d1.getTime() === d2.getTime();
+}
+
 // Get weeks between start and end date
 function getWeeks(start, end) {
   const weeks = [];
@@ -259,7 +281,8 @@ function generatePowerPointHTML(tasks, months) {
   const formattedTasks = tasks.map(task => ({
     ...task,
     originalDateStr: formatDetailedDate(task.originalDate),
-    newDateStr: formatDetailedDate(task.newDate)
+    newDateStr: formatDetailedDate(task.newDate),
+    sameWeek: datesInSameWeek(task.originalDate, task.newDate)
   }));
 
   // Generate HTML content
@@ -355,6 +378,13 @@ function generatePowerPointHTML(tasks, months) {
       width: 100%;
     }
     
+    .bar-purple { 
+      background-color: #9f7aea;
+      height: 24px; 
+      border: 1px solid #805ad5;
+      width: 100%;
+    }
+    
     .date-info { 
       font-size: 14px; 
       color: #718096;
@@ -438,7 +468,10 @@ function generatePowerPointHTML(tasks, months) {
       const newDateInWeek = dateInWeek(task.newDateStr, week);
 
       let cellContent = '';
-      if (originalDateInWeek) {
+      if (originalDateInWeek && newDateInWeek && task.sameWeek) {
+        // Both dates are in the same week - use purple
+        cellContent = '<div class="bar-purple"></div>';
+      } else if (originalDateInWeek) {
         cellContent = '<div class="bar-yellow"></div>';
       } else if (newDateInWeek) {
         cellContent = '<div class="bar-green"></div>';
@@ -463,6 +496,10 @@ function generatePowerPointHTML(tasks, months) {
     <div class="legend-item">
       <div class="legend-color bar-green"></div>
       <span>Completion Date</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color bar-purple"></div>
+      <span>Same Week</span>
     </div>
   </div>
 </body>
